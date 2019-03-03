@@ -1,0 +1,4 @@
+build/
+test.env
+*~
+cmd/timelapse/timelapse
