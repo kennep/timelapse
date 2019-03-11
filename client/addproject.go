@@ -4,16 +4,12 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-
-	"github.com/kennep/timelapse/domain"
 )
-
-var addProjectOptions domain.Project
 
 func init() {
 	rootCmd.AddCommand(addProjectCmd)
-	addProjectCmd.Flags().BoolVarP(&addProjectOptions.Billable, "billable", "b", false, "Mark a project as billable")
-	addProjectCmd.Flags().StringVarP(&addProjectOptions.Description, "description", "d", "", "Project description")
+	addProjectCmd.Flags().BoolVarP(&commandLineProject.Billable, "billable", "b", false, "Mark a project as billable")
+	addProjectCmd.Flags().StringVarP(&commandLineProject.Description, "description", "d", "", "Project description")
 }
 
 var addProjectCmd = &cobra.Command{
@@ -32,9 +28,9 @@ func addProject(projectName string) error {
 		return err
 	}
 
-	addProjectOptions.Name = projectName
+	commandLineProject.Name = projectName
 
-	project, err := apiClient.CreateProject(&addProjectOptions)
+	project, err := apiClient.CreateProject(&commandLineProject)
 	if err != nil {
 		return err
 	}

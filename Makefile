@@ -8,7 +8,7 @@ build:
 	docker cp timelapse:/bin/timelapse ./build/
 	docker rm timelapse
 
-run-server: build-server
+run-server: build
 	./run-server.sh
 
 clean:

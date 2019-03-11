@@ -1,4 +1,4 @@
-package repository
+package mongo_repository
 
 import (
 	"encoding/base64"
@@ -51,10 +51,10 @@ func mapUserToDomain(in *user) *domain.User {
 	return &out
 }
 
-func mapProjectToDomain(in *project) *domain.Project {
+func mapProjectToDomain(in *project, user *domain.User) *domain.Project {
 	return &domain.Project{
 		ID:          idToString(in.ID),
-		UserID:      idToString(in.UserID),
+		User:        user,
 		Name:        in.Name,
 		Description: in.Description,
 		Billable:    in.Billable,
@@ -62,7 +62,7 @@ func mapProjectToDomain(in *project) *domain.Project {
 }
 
 func mapProjectFromDomain(in *domain.Project) (*project, error) {
-	ids, err := stringsToIDs(in.ID, in.UserID)
+	ids, err := stringsToIDs(in.ID, in.User.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -75,20 +75,20 @@ func mapProjectFromDomain(in *domain.Project) (*project, error) {
 	}, nil
 }
 
-func mapTimeEntryToDomain(in *timeEntry) *domain.TimeEntry {
+func mapTimeEntryToDomain(in *timeEntry, p *domain.Project) *domain.TimeEntry {
 	return &domain.TimeEntry{
-		ID:        idToString(in.ID),
-		ProjectID: idToString(in.ProjectID),
-		UserID:    idToString(in.UserID),
-		Start:     in.Start,
-		End:       in.End,
-		Breaks:    in.Breaks,
-		Comment:   in.Comment,
+		ID:      idToString(in.ID),
+		Project: p,
+		Type:    in.Type,
+		Start:   in.Start,
+		End:     in.End,
+		Breaks:  in.Breaks,
+		Comment: in.Comment,
 	}
 }
 
 func mapTimeEntryFromDomain(in *domain.TimeEntry) (*timeEntry, error) {
-	ids, err := stringsToIDs(in.ID, in.ProjectID, in.UserID)
+	ids, err := stringsToIDs(in.ID, in.Project.ID, in.Project.User.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -96,6 +96,7 @@ func mapTimeEntryFromDomain(in *domain.TimeEntry) (*timeEntry, error) {
 		ID:        ids[0],
 		ProjectID: ids[1],
 		UserID:    ids[2],
+		Type:      in.Type,
 		Start:     in.Start,
 		End:       in.End,
 		Breaks:    in.Breaks,

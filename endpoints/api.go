@@ -1,4 +1,4 @@
-package api
+package endpoints
 
 import (
 	"encoding/json"
@@ -11,9 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kennep/timelapse/api"
 	"github.com/kennep/timelapse/domain"
-	"github.com/kennep/timelapse/middleware"
-	"github.com/kennep/timelapse/repository"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/go-chi/chi"
@@ -25,36 +24,40 @@ type errorResponse struct {
 	Message string `json:"message"`
 }
 
-func configureHandlerChain(repo *repository.TimelapseRepository, r chi.Router) {
-	r.Use(middleware.ApplicationContext())
+func configureHandlerChain(users *domain.Users, r chi.Router) {
+	r.Use(ApplicationContext())
 	r.Use(chimiddleware.RealIP)
-	r.Use(middleware.Logging())
-	r.Use(middleware.Authentication(repo))
+	r.Use(Logging())
+	r.Use(Authentication(users))
 	r.Use(chimiddleware.Recoverer)
 
 	r.Use(chimiddleware.Timeout(60 * time.Second))
 }
 
 type apiServer struct {
-	repo *repository.TimelapseRepository
+	users *domain.Users
 }
 
-func Serve(repo *repository.TimelapseRepository) error {
+func Serve(users *domain.Users) error {
 	listenAddr := os.Getenv("TIMELAPSE_LISTEN_ADDR")
 	if listenAddr == "" {
 		listenAddr = ":8080"
 	}
 
-	server := apiServer{repo}
+	server := apiServer{users}
 
 	r := chi.NewRouter()
-	configureHandlerChain(repo, r)
+	configureHandlerChain(users, r)
 
 	r.Get("/self", server.getCurrentUser)
 
 	r.Post("/projects", server.addProject)
+	r.Get("/projects", server.listProjects)
 	r.Get("/projects/{projectName}", server.getProject)
 	r.Put("/projects/{projectName}", server.updateProject)
+
+	r.Get("/entries", server.getUserTimeEntries)
+	r.Get("/projects/{projectname}/entries", server.getProjectTimeEntries)
 
 	log.WithFields(log.Fields{"address": listenAddr}).Info("Timelapse server listening")
 	if err := http.ListenAndServe(listenAddr, r); err != nil {
@@ -80,14 +83,14 @@ func emitErrorResponse(rw http.ResponseWriter, statusCode int, errorMessage stri
 }
 
 func internalError(rw http.ResponseWriter, r *http.Request, err error, message string) {
-	fields := middleware.RequestFields(r)
+	fields := RequestFields(r)
 	fields["error"] = err
 	log.WithFields(fields).Error(message)
 	emitErrorResponse(rw, 500, "Internal Server Error")
 }
 
 func badRequest(rw http.ResponseWriter, r *http.Request, err error, message string, status int) {
-	fields := middleware.RequestFields(r)
+	fields := RequestFields(r)
 	if err != nil {
 		fields["error"] = err
 	}
@@ -96,13 +99,13 @@ func badRequest(rw http.ResponseWriter, r *http.Request, err error, message stri
 }
 
 func validationError(rw http.ResponseWriter, r *http.Request, message string) {
-	fields := middleware.RequestFields(r)
+	fields := RequestFields(r)
 	log.WithFields(fields).Warnf("Validation error: %s", message)
 	emitErrorResponse(rw, 400, message)
 }
 
 func notFoundError(rw http.ResponseWriter, r *http.Request, message string) {
-	fields := middleware.RequestFields(r)
+	fields := RequestFields(r)
 	log.WithFields(fields).Warnf("Not found error: %s", message)
 	emitErrorResponse(rw, 404, message)
 }
@@ -147,7 +150,7 @@ func jsonRequest(rw http.ResponseWriter, r *http.Request, target interface{}) er
 }
 
 func (s *apiServer) getUser(rw http.ResponseWriter, r *http.Request) *domain.User {
-	user, err := s.repo.CreateUserFromContext(middleware.ApplicationContextFromRequest(r))
+	user, err := s.users.GetOrCreateUserFromContext(ApplicationContextFromRequest(r))
 	if err != nil {
 		internalError(rw, r, err, "Could not construct user from application context")
 		return nil
@@ -161,7 +164,7 @@ func (s *apiServer) getCurrentUser(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonResponse(rw, r, 200, user)
+	jsonResponse(rw, r, 200, mapUserToApi(user))
 }
 
 func (s *apiServer) addProject(rw http.ResponseWriter, r *http.Request) {
@@ -170,18 +173,19 @@ func (s *apiServer) addProject(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var project domain.Project
-	err := jsonRequest(rw, r, &project)
+	var apiProject api.Project
+	err := jsonRequest(rw, r, &apiProject)
 	if err != nil {
 		return
 	}
+	project := mapApiToProject(&apiProject)
 
 	if project.Name == "" {
 		validationError(rw, r, "required attribute: name")
 		return
 	}
 
-	projectResult, err := s.repo.GetProject(user, project.Name)
+	projectResult, err := user.GetProject(project.Name)
 	if err != nil {
 		internalError(rw, r, err, fmt.Sprintf("Could not get project by name %s", project.Name))
 		return
@@ -191,12 +195,12 @@ func (s *apiServer) addProject(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectResult, err = s.repo.AddProject(user, &project)
+	projectResult, err = user.AddProject(project)
 	if err != nil {
 		internalError(rw, r, err, fmt.Sprintf("Could not create project %s", project.Name))
 		return
 	}
-	jsonResponse(rw, r, 201, projectResult)
+	jsonResponse(rw, r, 201, mapProjectToApi(projectResult))
 }
 
 func (s *apiServer) getProject(rw http.ResponseWriter, r *http.Request) {
@@ -211,7 +215,7 @@ func (s *apiServer) getProject(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectResult, err := s.repo.GetProject(user, projectName)
+	projectResult, err := user.GetProject(projectName)
 	if err != nil {
 		internalError(rw, r, err, fmt.Sprintf("Could not get project by name %s", projectName))
 		return
@@ -221,7 +225,7 @@ func (s *apiServer) getProject(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonResponse(rw, r, 200, projectResult)
+	jsonResponse(rw, r, 200, mapProjectToApi(projectResult))
 }
 
 func (s *apiServer) updateProject(rw http.ResponseWriter, r *http.Request) {
@@ -235,18 +239,17 @@ func (s *apiServer) updateProject(rw http.ResponseWriter, r *http.Request) {
 		validationError(rw, r, "project name in URL cannot be blank")
 		return
 	}
-	var project domain.Project
-	err := jsonRequest(rw, r, &project)
+	var apiProject api.Project
+	err := jsonRequest(rw, r, &apiProject)
 	if err != nil {
 		return
 	}
-
-	if project.Name == "" {
+	if apiProject.Name == "" {
 		validationError(rw, r, "required attribute: name")
 		return
 	}
 
-	projectResult, err := s.repo.GetProject(user, projectName)
+	projectResult, err := user.GetProject(projectName)
 	if err != nil {
 		internalError(rw, r, err, fmt.Sprintf("Could not get project by name %s", projectName))
 		return
@@ -256,10 +259,67 @@ func (s *apiServer) updateProject(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	projectResult, err = s.repo.UpdateProject(user, projectName, &project)
+	mapApiToProjectDest(&apiProject, projectResult)
+
+	err = projectResult.Save()
 	if err != nil {
 		internalError(rw, r, err, fmt.Sprintf("Could not update project %s", projectName))
 		return
 	}
-	jsonResponse(rw, r, 200, projectResult)
+	jsonResponse(rw, r, 200, mapProjectToApi(projectResult))
+}
+
+func (s *apiServer) listProjects(rw http.ResponseWriter, r *http.Request) {
+	user := s.getUser(rw, r)
+	if user == nil {
+		return
+	}
+
+	projects, err := user.GetProjects()
+	if err != nil {
+		internalError(rw, r, err, "Could not list projects")
+		return
+	}
+
+	jsonResponse(rw, r, 200, mapProjectsToApi(projects))
+}
+
+func (s *apiServer) getProjectTimeEntries(rw http.ResponseWriter, r *http.Request) {
+	user := s.getUser(rw, r)
+	if user == nil {
+		return
+	}
+
+	projectName := chi.URLParam(r, "projectName")
+	if projectName == "" {
+		validationError(rw, r, "project name in URL cannot be blank")
+		return
+	}
+
+	project, err := user.GetProject(projectName)
+	if err != nil {
+		internalError(rw, r, err, fmt.Sprintf("Could not get project by name %s", projectName))
+		return
+	}
+
+	entries, err := project.GetEntries()
+	if err != nil {
+		internalError(rw, r, err, fmt.Sprintf("Could not get time entries for project %s", projectName))
+	}
+
+	jsonResponse(rw, r, 200, mapTimeEntriesToApi(entries))
+}
+
+func (s *apiServer) getUserTimeEntries(rw http.ResponseWriter, r *http.Request) {
+	user := s.getUser(rw, r)
+	if user == nil {
+		return
+	}
+
+	entries, err := user.GetEntries()
+	if err != nil {
+		internalError(rw, r, err, fmt.Sprintf("Could not get time entries"))
+	}
+
+	jsonResponse(rw, r, 200, mapTimeEntriesToApi(entries))
 }

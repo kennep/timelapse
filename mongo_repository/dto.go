@@ -1,4 +1,4 @@
-package repository
+package mongo_repository
 
 import (
 	"time"
@@ -30,16 +30,10 @@ type (
 		ID        primitive.ObjectID `bson:"_id"`
 		ProjectID primitive.ObjectID `bson:"projectid"`
 		UserID    primitive.ObjectID `bson:"userid"`
+		Type      string             `bson:"type"`
 		Start     time.Time          `bson:"start"`
 		End       time.Time          `bson:"end"`
 		Breaks    time.Duration      `bson:"breaks"`
 		Comment   string             `bson:"comment"`
-	}
-
-	dayEntry struct {
-		ID     primitive.ObjectID `bson:"_id"`
-		Type   string             `bson:"type"`
-		UserID string             `bson:"userid"`
-		Date   time.Time          `bson:"date"`
 	}
 )

@@ -1,7 +1,8 @@
-package repository
+package mongo_repository
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -16,16 +17,16 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// TimelapseRepository represent the repository connection
-type TimelapseRepository struct {
+// MongoRepository represent the repository connection
+type MongoRepository struct {
 	client           *mongo.Client
 	database         *mongo.Database
 	connectionString string
 }
 
 // NewRepository initializes the repository and connects to the database
-func NewRepository() (*TimelapseRepository, error) {
-	var repository TimelapseRepository
+func NewMongoRepository() (*MongoRepository, error) {
+	var repository MongoRepository
 
 	connectionString := os.Getenv("TIMELAPSE_DB_URL")
 	if connectionString == "" {
@@ -67,7 +68,7 @@ func NewRepository() (*TimelapseRepository, error) {
 	return &repository, nil
 }
 
-func (r *TimelapseRepository) CreateUserFromContext(appCtx *domain.ApplicationContext) (*domain.User, error) {
+func (r *MongoRepository) CreateUserFromContext(appCtx *domain.ApplicationContext) (*domain.User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -124,23 +125,25 @@ func (r *TimelapseRepository) CreateUserFromContext(appCtx *domain.ApplicationCo
 
 }
 
-func (r *TimelapseRepository) AddProject(u *domain.User, p *domain.Project) (*domain.Project, error) {
+func (r *MongoRepository) AddProject(p *domain.Project) (*domain.Project, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-
-	p.UserID = u.ID
 
 	repoProject, err := mapProjectFromDomain(p)
 	if err != nil {
 		return nil, err
 	}
 	repoProject.ID = primitive.NewObjectID()
-	r.database.Collection("projects").InsertOne(ctx, repoProject)
+	_, err = r.database.Collection("projects").InsertOne(ctx, repoProject)
+	if err != nil {
+		return nil, err
+	}
 
-	return mapProjectToDomain(repoProject), nil
+	return mapProjectToDomain(repoProject, p.User), nil
 }
 
-func (r *TimelapseRepository) UpdateProject(u *domain.User, projectName string, p *domain.Project) (*domain.Project, error) {
+/*
+func (r *MongoRepository) UpdateProject(u *domain.User, projectName string, p *domain.Project) (*domain.Project, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -158,9 +161,36 @@ func (r *TimelapseRepository) UpdateProject(u *domain.User, projectName string, 
 		})
 
 	return r.GetProject(u, p.Name)
+}*/
+
+func (r *MongoRepository) UpdateProject(p *domain.Project) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	projectid, err := stringToID(p.ID)
+	if err != err {
+		return err
+	}
+	repoProject, err := mapProjectFromDomain(p)
+	if err != nil {
+		return err
+	}
+
+	filter := bson.M{"_id": projectid}
+
+	result, err := r.database.Collection("projects").ReplaceOne(ctx, filter, repoProject)
+
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount != 1 {
+		return fmt.Errorf("Project with id %s not found", projectid)
+	}
+
+	return nil
 }
 
-func (r *TimelapseRepository) GetProject(u *domain.User, projectName string) (*domain.Project, error) {
+func (r *MongoRepository) GetProject(u *domain.User, projectName string) (*domain.Project, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -183,10 +213,36 @@ func (r *TimelapseRepository) GetProject(u *domain.User, projectName string) (*d
 		return nil, err
 	}
 
-	return mapProjectToDomain(&repoProject), nil
+	return mapProjectToDomain(&repoProject, u), nil
 }
 
-func (r *TimelapseRepository) GetProjects(u *domain.User) ([]domain.Project, error) {
+func (r *MongoRepository) getProjectById(u *domain.User, projectID primitive.ObjectID) (*domain.Project, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	userid, err := stringToID(u.ID)
+	if err != err {
+		return nil, err
+	}
+	filter := bson.M{"userid": userid, "_id": projectID}
+
+	result := r.database.Collection("projects").FindOne(ctx, filter)
+	if result.Err() != nil {
+		return nil, err
+	}
+
+	var repoProject project
+	err = result.Decode(&repoProject)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return mapProjectToDomain(&repoProject, u), nil
+}
+
+func (r *MongoRepository) GetProjects(u *domain.User) ([]*domain.Project, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -196,7 +252,7 @@ func (r *TimelapseRepository) GetProjects(u *domain.User) ([]domain.Project, err
 	}
 	filter := bson.M{"userid": userid}
 
-	var result []domain.Project
+	var result []*domain.Project
 
 	cursor, err := r.database.Collection("projects").Find(ctx, filter)
 	if err != nil {
@@ -208,7 +264,7 @@ func (r *TimelapseRepository) GetProjects(u *domain.User) ([]domain.Project, err
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, *mapProjectToDomain(&repoProject))
+		result = append(result, mapProjectToDomain(&repoProject, u))
 	}
 	if err = cursor.Err(); err != nil {
 		return nil, err
@@ -217,7 +273,7 @@ func (r *TimelapseRepository) GetProjects(u *domain.User) ([]domain.Project, err
 	return result, nil
 }
 
-func (r *TimelapseRepository) AddTimeEntry(u *domain.User, projectName string, e domain.TimeEntry) (*domain.TimeEntry, error) {
+func (r *MongoRepository) AddTimeEntry(u *domain.User, projectName string, e domain.TimeEntry) (*domain.TimeEntry, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
@@ -225,8 +281,7 @@ func (r *TimelapseRepository) AddTimeEntry(u *domain.User, projectName string, e
 	if err != nil {
 		return nil, err
 	}
-	e.UserID = u.ID
-	e.ProjectID = project.ID
+	e.Project = project
 
 	repoEntry, err := mapTimeEntryFromDomain(&e)
 	if err != nil {
@@ -237,17 +292,17 @@ func (r *TimelapseRepository) AddTimeEntry(u *domain.User, projectName string, e
 	return nil, nil
 }
 
-func (r *TimelapseRepository) GetTimeEntries(u *domain.User, projectName string) ([]domain.TimeEntry, error) {
+func (r *MongoRepository) GetProjectTimeEntries(p *domain.Project) ([]*domain.TimeEntry, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	userid, err := stringToID(u.ID)
+	projectid, err := stringToID(p.ID)
 	if err != err {
 		return nil, err
 	}
-	filter := bson.M{"userid": userid}
+	filter := bson.M{"projectid": projectid}
 
-	var result []domain.TimeEntry
+	var result []*domain.TimeEntry
 
 	cursor, err := r.database.Collection("timeentries").Find(ctx, filter)
 	if err != nil {
@@ -259,7 +314,43 @@ func (r *TimelapseRepository) GetTimeEntries(u *domain.User, projectName string)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, *mapTimeEntryToDomain(&repoEntry))
+		result = append(result, mapTimeEntryToDomain(&repoEntry, p))
+	}
+	if err = cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (r *MongoRepository) GetUserTimeEntries(u *domain.User) ([]*domain.TimeEntry, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	userid, err := stringToID(u.ID)
+	if err != err {
+		return nil, err
+	}
+	filter := bson.M{"userid": userid}
+
+	var result []*domain.TimeEntry
+
+	cursor, err := r.database.Collection("timeentries").Find(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	for cursor.Next(ctx) {
+		var repoEntry timeEntry
+		err = cursor.Decode(&repoEntry)
+		if err != nil {
+			return nil, err
+		}
+
+		project, err := r.getProjectById(u, repoEntry.ProjectID)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, mapTimeEntryToDomain(&repoEntry, project))
 	}
 	if err = cursor.Err(); err != nil {
 		return nil, err

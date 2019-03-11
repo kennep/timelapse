@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/kennep/timelapse/api"
 	"github.com/spf13/cobra"
 )
 
@@ -15,6 +16,8 @@ var rootCmd = &cobra.Command{
 		// Do Stuff Here
 	},
 }
+
+var commandLineProject api.Project
 
 // Execute is the main entry point to this command-line application
 func Execute() {

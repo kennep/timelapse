@@ -1,4 +1,4 @@
-package middleware
+package endpoints
 
 import (
 	"context"

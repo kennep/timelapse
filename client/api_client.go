@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/kennep/timelapse/domain"
+	"github.com/kennep/timelapse/api"
 )
 
 const applicationJson = "application/json"
@@ -28,12 +28,6 @@ type HTTPResponseError struct {
 
 type RemoteError struct {
 	Message string `json:"message"`
-}
-
-type UpdateProjectRequest struct {
-	Name        *string
-	Description *string
-	Billable    *bool
 }
 
 func (err *HTTPResponseError) Error() string {
@@ -183,8 +177,8 @@ func (c *ApiClient) doRequest(method string, path string, body []byte) ([]byte, 
 	return buf.Bytes(), err
 }
 
-func (c *ApiClient) CreateProject(project *domain.Project) (*domain.Project, error) {
-	var createdProject domain.Project
+func (c *ApiClient) CreateProject(project *api.Project) (*api.Project, error) {
+	var createdProject api.Project
 	err := c.jsonRequest("POST", "/projects", project, &createdProject)
 	if err != nil {
 		return nil, err
@@ -192,8 +186,8 @@ func (c *ApiClient) CreateProject(project *domain.Project) (*domain.Project, err
 	return &createdProject, nil
 }
 
-func (c *ApiClient) GetProject(projectName string) (*domain.Project, error) {
-	var project domain.Project
+func (c *ApiClient) GetProject(projectName string) (*api.Project, error) {
+	var project api.Project
 	err := c.jsonRequest("GET", fmt.Sprintf("/projects/%s", url.PathEscape(projectName)), nil, &project)
 	if err != nil {
 		return nil, err
@@ -201,26 +195,36 @@ func (c *ApiClient) GetProject(projectName string) (*domain.Project, error) {
 	return &project, nil
 }
 
-func (c *ApiClient) UpdateProject(projectName string, updateRequest *UpdateProjectRequest) (*domain.Project, error) {
-	projectToUpdate, err := c.GetProject(projectName)
-	if err != nil {
-		return nil, err
-	}
-	if updateRequest.Name != nil {
-		projectToUpdate.Name = *updateRequest.Name
-	}
-	if updateRequest.Description != nil {
-		projectToUpdate.Description = *updateRequest.Description
-	}
-	if updateRequest.Billable != nil {
-		projectToUpdate.Billable = *updateRequest.Billable
-	}
-
-	var updatedProject domain.Project
-	err = c.jsonRequest("PUT", fmt.Sprintf("/projects/%s", url.PathEscape(projectName)), projectToUpdate, &updatedProject)
+func (c *ApiClient) UpdateProject(projectName string, project *api.Project) (*api.Project, error) {
+	var updatedProject api.Project
+	err := c.jsonRequest("PUT", fmt.Sprintf("/projects/%s", url.PathEscape(projectName)), project, &updatedProject)
 	if err != nil {
 		return nil, err
 	}
 
 	return &updatedProject, nil
+}
+
+func (c *ApiClient) ListProjects() ([]*api.Project, error) {
+	var projects []*api.Project
+	err := c.jsonRequest("GET", "/projects", nil, &projects)
+	if err != nil {
+		return nil, err
+	}
+	return projects, nil
+}
+
+func (c *ApiClient) GetTimeEntries(projectName string) ([]*api.TimeEntry, error) {
+	var timeentries []*api.TimeEntry
+	var path string
+	if projectName == "" {
+		path = "/entries"
+	} else {
+		path = fmt.Sprintf("/projects/%s/entries", projectName)
+	}
+	err := c.jsonRequest("GET", path, nil, &timeentries)
+	if err != nil {
+		return nil, err
+	}
+	return timeentries, nil
 }

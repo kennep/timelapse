@@ -1,7 +1,7 @@
 // Fetched from: https://raw.githubusercontent.com/bakins/logrus-middleware/master/middleware.go
 // Copied instead of referenced here because the original package is no longer maintained.
 
-package middleware
+package endpoints
 
 import (
 	"net/http"

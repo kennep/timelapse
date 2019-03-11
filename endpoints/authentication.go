@@ -1,4 +1,4 @@
-package middleware
+package endpoints
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	oidc "github.com/coreos/go-oidc"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/kennep/timelapse/repository"
+	"github.com/kennep/timelapse/domain"
 )
 
 const bearerLen = len("Bearer ")
@@ -25,7 +25,7 @@ type (
 		handler   http.Handler
 		providers map[string]*oidc.Provider
 		verifiers map[string]*oidc.IDTokenVerifier
-		repo      *repository.TimelapseRepository
+		users     *domain.Users
 	}
 
 	// The parts of the claims that the code cares about
@@ -33,11 +33,6 @@ type (
 		Issuer        string `json:"iss"`
 		Email         string `json:"email"`
 		EmailVerified bool   `json:"email_verified"`
-	}
-
-	// This is returned in error responses
-	errorResponse struct {
-		Message string `json:"message"`
 	}
 )
 
@@ -62,11 +57,11 @@ func (h *AuthenticationHandler) oidcVerifiers() map[string]*oidc.IDTokenVerifier
 }
 
 // Authentication creates a new handler component.
-func Authentication(repo *repository.TimelapseRepository) func(http.Handler) http.Handler {
+func Authentication(users *domain.Users) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return &AuthenticationHandler{
 			handler: next,
-			repo:    repo,
+			users:   users,
 		}
 	}
 }
@@ -85,21 +80,6 @@ func getIssuerFromJWT(p string) (string, error) {
 	json.Unmarshal(payload, &claims)
 
 	return claims.Issuer, nil
-}
-
-func emitErrorResponse(rw http.ResponseWriter, statusCode int, errorMessage string) {
-	errResponse := errorResponse{errorMessage}
-	body, err := json.Marshal(errResponse)
-	if err != nil {
-		// oh dear... errors when marshaling the error response. We'll write the message as plain text instead
-		rw.Header().Set("Content-Type", "text/plain; charset=UTF-8")
-		rw.WriteHeader(statusCode)
-		rw.Write([]byte(errorMessage))
-	} else {
-		rw.Header().Set("Content-Type", "application/json")
-		rw.WriteHeader(statusCode)
-		rw.Write(body)
-	}
 }
 
 // ServeHTTP calls the next handler after authentication processing
@@ -160,7 +140,7 @@ func (h *AuthenticationHandler) authenticate(rw http.ResponseWriter, r *http.Req
 				appcontext.User.Issuer = idtoken.Issuer
 				appcontext.User.Email = claims.Email
 
-				_, err = h.repo.CreateUserFromContext(appcontext)
+				_, err = h.users.GetOrCreateUserFromContext(appcontext)
 				if err != nil {
 					return false, err
 				}
