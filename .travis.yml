@@ -5,4 +5,7 @@ services:
 
 script:
   make build
+  echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  docker tag timelapse kennep/timelapse
+  docker push kennep/timelapse
   
