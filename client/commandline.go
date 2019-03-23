@@ -18,6 +18,7 @@ var rootCmd = &cobra.Command{
 }
 
 var commandLineProject api.Project
+var commandLineEntry api.TimeEntry
 
 // Execute is the main entry point to this command-line application
 func Execute() {
