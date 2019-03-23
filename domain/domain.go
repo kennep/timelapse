@@ -23,7 +23,7 @@ type (
 	}
 )
 
-var EntryTypes = []string{"normal", "sick", "sick-child", "vacation"}
+var EntryTypes = []string{"work", "sick", "sick-child", "vacation"}
 
 func (p *Project) String() string {
 	return fmt.Sprintf("Project: %s (%s) (billable: %t)", p.Name, p.Description, p.Billable)

@@ -63,6 +63,18 @@ func mapTimeEntryToApi(entry *domain.TimeEntry) *api.TimeEntry {
 	return &result
 }
 
+func mapApiToTimeEntry(entry *api.TimeEntry) *domain.TimeEntry {
+	var result domain.TimeEntry
+
+	result.Type = entry.Type
+	result.Start = entry.Start
+	result.End = entry.End
+	result.Breaks = entry.Breaks
+	result.Comment = entry.Comment
+
+	return &result
+}
+
 func mapTimeEntriesToApi(entries []*domain.TimeEntry) []*api.TimeEntry {
 	var result []*api.TimeEntry
 	for _, entry := range entries {

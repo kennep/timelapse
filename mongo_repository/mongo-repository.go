@@ -125,11 +125,11 @@ func (r *MongoRepository) CreateUserFromContext(appCtx *domain.ApplicationContex
 
 }
 
-func (r *MongoRepository) AddProject(p *domain.Project) (*domain.Project, error) {
+func (r *MongoRepository) AddProject(p domain.Project) (*domain.Project, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	repoProject, err := mapProjectFromDomain(p)
+	repoProject, err := mapProjectFromDomain(&p)
 	if err != nil {
 		return nil, err
 	}
@@ -142,38 +142,17 @@ func (r *MongoRepository) AddProject(p *domain.Project) (*domain.Project, error)
 	return mapProjectToDomain(repoProject, p.User), nil
 }
 
-/*
-func (r *MongoRepository) UpdateProject(u *domain.User, projectName string, p *domain.Project) (*domain.Project, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	userid, err := stringToID(u.ID)
-	if err != err {
-		return nil, err
-	}
-	filter := bson.M{"userid": userid, "name": projectName}
-
-	r.database.Collection("projects").UpdateOne(ctx, filter,
-		bson.D{
-			{"$set", bson.D{{"name", p.Name}}},
-			{"$set", bson.D{{"description", p.Description}}},
-			{"$set", bson.D{{"billable", p.Billable}}},
-		})
-
-	return r.GetProject(u, p.Name)
-}*/
-
-func (r *MongoRepository) UpdateProject(p *domain.Project) error {
+func (r *MongoRepository) UpdateProject(p domain.Project) (*domain.Project, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	projectid, err := stringToID(p.ID)
 	if err != err {
-		return err
+		return nil, err
 	}
-	repoProject, err := mapProjectFromDomain(p)
+	repoProject, err := mapProjectFromDomain(&p)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	filter := bson.M{"_id": projectid}
@@ -181,13 +160,13 @@ func (r *MongoRepository) UpdateProject(p *domain.Project) error {
 	result, err := r.database.Collection("projects").ReplaceOne(ctx, filter, repoProject)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if result.MatchedCount != 1 {
-		return fmt.Errorf("Project with id %s not found", projectid)
+		return nil, fmt.Errorf("Project with id %s not found", projectid)
 	}
 
-	return nil
+	return mapProjectToDomain(repoProject, p.User), nil
 }
 
 func (r *MongoRepository) GetProject(u *domain.User, projectName string) (*domain.Project, error) {
@@ -273,23 +252,23 @@ func (r *MongoRepository) GetProjects(u *domain.User) ([]*domain.Project, error)
 	return result, nil
 }
 
-func (r *MongoRepository) AddTimeEntry(u *domain.User, projectName string, e domain.TimeEntry) (*domain.TimeEntry, error) {
+func (r *MongoRepository) AddTimeEntry(p *domain.Project, e domain.TimeEntry) (*domain.TimeEntry, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	project, err := r.GetProject(u, projectName)
-	if err != nil {
-		return nil, err
-	}
-	e.Project = project
+	e.Project = p
 
 	repoEntry, err := mapTimeEntryFromDomain(&e)
+	repoEntry.ID = primitive.NewObjectID()
 	if err != nil {
 		return nil, err
 	}
-	r.database.Collection("timeentries").InsertOne(ctx, repoEntry)
+	_, err = r.database.Collection("timeentries").InsertOne(ctx, repoEntry)
+	if err != nil {
+		return nil, err
+	}
 
-	return nil, nil
+	return &e, nil
 }
 
 func (r *MongoRepository) GetProjectTimeEntries(p *domain.Project) ([]*domain.TimeEntry, error) {

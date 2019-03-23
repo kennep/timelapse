@@ -25,7 +25,7 @@ func (u *User) GetProject(projectName string) (*Project, error) {
 
 func (u *User) AddProject(project *Project) (*Project, error) {
 	project.User = u
-	project, err := u.repo.AddProject(project)
+	project, err := u.repo.AddProject(*project)
 	if err != nil {
 		return nil, err
 	}

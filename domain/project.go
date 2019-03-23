@@ -12,7 +12,8 @@ type (
 )
 
 func (p *Project) Save() error {
-	return p.repo.UpdateProject(p)
+	_, err := p.repo.UpdateProject(*p)
+	return err
 }
 
 func (p *Project) GetEntries() ([]*TimeEntry, error) {
@@ -25,4 +26,8 @@ func (p *Project) GetEntries() ([]*TimeEntry, error) {
 		entry.Project = p
 	}
 	return timeentries, nil
+}
+
+func (p *Project) AddEntry(entry *TimeEntry) (*TimeEntry, error) {
+	return p.repo.AddTimeEntry(p, *entry)
 }

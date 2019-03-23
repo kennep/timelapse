@@ -220,11 +220,23 @@ func (c *ApiClient) GetTimeEntries(projectName string) ([]*api.TimeEntry, error)
 	if projectName == "" {
 		path = "/entries"
 	} else {
-		path = fmt.Sprintf("/projects/%s/entries", projectName)
+		path = fmt.Sprintf("/projects/%s/entries", url.PathEscape(projectName))
 	}
 	err := c.jsonRequest("GET", path, nil, &timeentries)
 	if err != nil {
 		return nil, err
 	}
 	return timeentries, nil
+}
+
+func (c *ApiClient) AddTimeEntry(projectName string, entry *api.TimeEntry) (*api.TimeEntry, error) {
+	path := fmt.Sprintf("/projects/%s/entries", url.PathEscape(projectName))
+
+	var entryResult api.TimeEntry
+	err := c.jsonRequest("POST", path, entry, &entryResult)
+	if err != nil {
+		return nil, err
+	}
+
+	return &entryResult, nil
 }
