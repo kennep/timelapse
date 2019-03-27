@@ -54,6 +54,7 @@ func mapProjectsToApi(projects []*domain.Project) []*api.Project {
 func mapTimeEntryToApi(entry *domain.TimeEntry) *api.TimeEntry {
 	var result api.TimeEntry
 
+	result.ProjectName = entry.Project.Name
 	result.Type = entry.Type
 	result.Start = entry.Start
 	result.End = entry.End

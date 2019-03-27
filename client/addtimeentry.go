@@ -74,8 +74,8 @@ func addTimeEntry(projectName string) error {
 	}
 
 	if entryType != "work" {
-		entry.Start = zeroTime(entry.Start)
-		entry.End = zeroTime(entry.End)
+		entry.Start = normalizeTime(entry.Start)
+		entry.End = normalizeTime(entry.End)
 	}
 
 	result, err := apiClient.AddTimeEntry(projectName, &entry)
@@ -88,6 +88,6 @@ func addTimeEntry(projectName string) error {
 	return nil
 }
 
-func zeroTime(t time.Time) time.Time {
-	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+func normalizeTime(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 12, 0, 0, 0, t.Location())
 }
