@@ -19,3 +19,9 @@ jobs:
           command: |
             docker login -u "$DOCKER_USERNAME" -p "$DOCKER_PASSWORD"
             docker push kennep/timelapse
+
+workflows:    
+  build:
+    jobs:
+      - build:
+          context: DockerHub
