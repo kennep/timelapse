@@ -1,8 +1,10 @@
 steps:
 
+name: "$(Build.SourceBranchName)-$(Build.SourceVersion)"
+
 - task: Docker@1
   displayName: 'Build docker image'
   inputs:
     dockerFile: ./Dockerfile
-    imageName: 'kennep/timelapse'
+    imageName: 'kennep/timelapse:$(Build.SourceBranchName)'
 
