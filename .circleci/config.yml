@@ -3,12 +3,12 @@ jobs:
   build:
     docker:
       image: docker:18.09
-    steps:
-      - checkout
-      - setup_remote_docker:
-          version: "18.09.3"
-          docker_layer_caching: true
-      - run:
-          name: Build Docker Image
-          command: |
-            docker build . -t kennep/timelapse
+  steps:
+    - checkout
+    - setup_remote_docker:
+        version: "18.09.3"
+        docker_layer_caching: true
+    - run:
+        name: Build Docker Image
+        command: |
+          docker build . -t kennep/timelapse
