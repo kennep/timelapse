@@ -1,0 +1,8 @@
+steps:
+
+- task: Docker@1
+  displayName: 'Build docker image'
+  inputs:
+    dockerFile: ./Dockerfile
+    imageName: 'kennep/timelapse'
+
