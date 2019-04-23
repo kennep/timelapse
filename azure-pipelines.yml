@@ -1,7 +1,6 @@
-steps:
-
 name: "$(Build.SourceBranchName)-$(Build.SourceVersion)"
 
+steps:
 - task: Docker@1
   displayName: 'Build docker image'
   inputs:
