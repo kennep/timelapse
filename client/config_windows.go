@@ -14,5 +14,5 @@ func configDir() string {
 	if configDir == "" {
 		panic("APPDATA environment variable not set - cannot locate config directory")
 	}
-	return filepath.join(configDir, "timelapse")
+	return filepath.Join(configDir, "timelapse")
 }

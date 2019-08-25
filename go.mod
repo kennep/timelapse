@@ -2,6 +2,7 @@ module github.com/kennep/timelapse
 
 require (
 	github.com/coreos/go-oidc v2.0.0+incompatible
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
 	github.com/go-chi/chi v4.0.0+incompatible
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
