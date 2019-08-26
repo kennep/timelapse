@@ -19,6 +19,9 @@ func (u *User) GetProject(projectName string) (*Project, error) {
 	if err != nil {
 		return nil, err
 	}
+	if project == nil {
+		return nil, nil
+	}
 	u.copyDeps(&project.aggregateRoot)
 	return project, nil
 }
