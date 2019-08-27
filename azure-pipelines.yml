@@ -1,9 +1,18 @@
 name: "$(Build.SourceBranchName)-$(Build.SourceVersion)"
 
 steps:
-- task: Docker@1
-  displayName: 'Build docker image'
+- task: Docker@2
+  displayName: Login to Docker Hub
   inputs:
-    dockerFile: ./Dockerfile
-    imageName: 'kennep/timelapse:$(Build.SourceBranchName)'
+    command: login
+    containerRegistry: DockerHub
+- task: Docker@2
+  displayName: 'Build and Push image'
+  inputs:
+    command: buildAndPush
+    repository: kennep/timelapse
+    tags: |
+      $(Build.BuildId)
+      $(Build.SourceBranchName)
+
 
