@@ -12,7 +12,9 @@ steps:
     command: buildAndPush
     repository: kennep/timelapse
     tags: |
-      $(Build.BuildId)
+      latest
       $(Build.SourceBranchName)
+      $(Build.SourceBranchName)-$(Build.SourceVersion)
+
 
 
