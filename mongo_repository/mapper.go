@@ -1,7 +1,10 @@
 package mongo_repository
 
 import (
+	"crypto/rand"
 	"encoding/base64"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/mongodb/mongo-go-driver/bson/primitive"
 
@@ -34,6 +37,15 @@ func stringsToIDs(ids ...string) ([]primitive.ObjectID, error) {
 		result = append(result, objID)
 	}
 	return result, nil
+}
+
+func newID() primitive.ObjectID {
+	var b primitive.ObjectID
+	_, err := rand.Read(b[:])
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
 
 func mapUserToDomain(in *user) *domain.User {
@@ -92,6 +104,7 @@ func mapTimeEntryFromDomain(in *domain.TimeEntry) (*timeEntry, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Infof("Time entry ID: %s", ids[0])
 	return &timeEntry{
 		ID:        ids[0],
 		ProjectID: ids[1],

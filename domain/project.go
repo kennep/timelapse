@@ -31,3 +31,12 @@ func (p *Project) GetEntries() ([]*TimeEntry, error) {
 func (p *Project) AddEntry(entry *TimeEntry) (*TimeEntry, error) {
 	return p.repo.AddTimeEntry(p, *entry)
 }
+
+func (p *Project) UpdateEntry(entry *TimeEntry) (*TimeEntry, error) {
+	entry.Project = p
+	return p.repo.UpdateTimeEntry(p, *entry)
+}
+
+func (p *Project) GetEntry(entryID string) (*TimeEntry, error) {
+	return p.repo.GetProjectTimeEntry(p, entryID)
+}

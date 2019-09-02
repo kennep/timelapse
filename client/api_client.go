@@ -240,3 +240,27 @@ func (c *ApiClient) AddTimeEntry(projectName string, entry *api.TimeEntry) (*api
 
 	return &entryResult, nil
 }
+
+func (c *ApiClient) GetTimeEntry(projectName string, entryID string) (*api.TimeEntry, error) {
+	path := fmt.Sprintf("/projects/%s/entries/%s", url.PathEscape(projectName), url.PathEscape(entryID))
+
+	var entryResult api.TimeEntry
+	err := c.jsonRequest("GET", path, nil, &entryResult)
+	if err != nil {
+		return nil, err
+	}
+
+	return &entryResult, nil
+}
+
+func (c *ApiClient) UpdateTimeEntry(projectName string, entry *api.TimeEntry) (*api.TimeEntry, error) {
+	path := fmt.Sprintf("/projects/%s/entries/%s", url.PathEscape(projectName), url.PathEscape(entry.ID))
+
+	var entryResult api.TimeEntry
+	err := c.jsonRequest("PUT", path, entry, &entryResult)
+	if err != nil {
+		return nil, err
+	}
+
+	return &entryResult, nil
+}

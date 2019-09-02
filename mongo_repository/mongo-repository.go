@@ -102,7 +102,7 @@ func (r *MongoRepository) CreateUserFromContext(appCtx *domain.ApplicationContex
 		} else if err == mongo.ErrNoDocuments {
 			log.Info("No documents found, inserting")
 			repoUser := user{
-				ID: primitive.NewObjectID(),
+				ID: newID(),
 				Identities: []identity{{
 					Issuer:    appCtx.User.Issuer,
 					SubjectID: appCtx.User.SubjectID,
@@ -133,7 +133,7 @@ func (r *MongoRepository) AddProject(p domain.Project) (*domain.Project, error) 
 	if err != nil {
 		return nil, err
 	}
-	repoProject.ID = primitive.NewObjectID()
+	repoProject.ID = newID()
 	_, err = r.database.Collection("projects").InsertOne(ctx, repoProject)
 	if err != nil {
 		return nil, err
@@ -259,7 +259,7 @@ func (r *MongoRepository) AddTimeEntry(p *domain.Project, e domain.TimeEntry) (*
 	e.Project = p
 
 	repoEntry, err := mapTimeEntryFromDomain(&e)
-	repoEntry.ID = primitive.NewObjectID()
+	repoEntry.ID = newID()
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +268,31 @@ func (r *MongoRepository) AddTimeEntry(p *domain.Project, e domain.TimeEntry) (*
 		return nil, err
 	}
 
+	e.ID = idToString(repoEntry.ID)
 	return &e, nil
+}
+
+func (r *MongoRepository) UpdateTimeEntry(p *domain.Project, e domain.TimeEntry) (*domain.TimeEntry, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	repoEntry, err := mapTimeEntryFromDomain(&e)
+	if err != nil {
+		return nil, err
+	}
+
+	filter := bson.M{"_id": repoEntry.ID}
+
+	result, err := r.database.Collection("timeentries").ReplaceOne(ctx, filter, repoEntry)
+
+	if err != nil {
+		return nil, err
+	}
+	if result.MatchedCount != 1 {
+		return nil, fmt.Errorf("Time entry with id %s not found", e.ID)
+	}
+
+	return mapTimeEntryToDomain(repoEntry, p), nil
 }
 
 func (r *MongoRepository) GetProjectTimeEntries(p *domain.Project) ([]*domain.TimeEntry, error) {
@@ -300,6 +324,39 @@ func (r *MongoRepository) GetProjectTimeEntries(p *domain.Project) ([]*domain.Ti
 	}
 
 	return result, nil
+}
+
+func (r *MongoRepository) GetProjectTimeEntry(p *domain.Project, entryID string) (*domain.TimeEntry, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	projectid, err := stringToID(p.ID)
+	if err != err {
+		return nil, err
+	}
+	entryid, err := stringToID(entryID)
+	if err != err {
+		return nil, err
+	}
+
+	filter := bson.M{
+		"_id":       entryid,
+		"projectid": projectid,
+	}
+
+	result := r.database.Collection("timeentries").FindOne(ctx, filter)
+	if result.Err() != nil {
+		return nil, err
+	}
+	var repoEntry timeEntry
+	err = result.Decode(&repoEntry)
+	if err == mongo.ErrNoDocuments {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
+	}
+
+	return mapTimeEntryToDomain(&repoEntry, p), nil
 }
 
 func (r *MongoRepository) GetUserTimeEntries(u *domain.User) ([]*domain.TimeEntry, error) {

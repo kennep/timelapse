@@ -59,6 +59,8 @@ func Serve(users *domain.Users) error {
 	r.Get("/entries", server.getUserTimeEntries)
 	r.Get("/projects/{projectName}/entries", server.getProjectTimeEntries)
 	r.Post("/projects/{projectName}/entries", server.addProjectTimeEntry)
+	r.Get("/projects/{projectName}/entries/{entryID}", server.getProjectTimeEntry)
+	r.Put("/projects/{projectName}/entries/{entryID}", server.updateProjectTimeEntry)
 
 	log.WithFields(log.Fields{"address": listenAddr}).Info("Timelapse server listening")
 	if err := http.ListenAndServe(listenAddr, r); err != nil {
@@ -302,6 +304,10 @@ func (s *apiServer) getProjectTimeEntries(rw http.ResponseWriter, r *http.Reques
 		internalError(rw, r, err, fmt.Sprintf("Could not get project by name %s", projectName))
 		return
 	}
+	if project == nil {
+		notFoundError(rw, r, fmt.Sprintf("Project not found: %s", projectName))
+		return
+	}
 
 	entries, err := project.GetEntries()
 	if err != nil {
@@ -349,6 +355,10 @@ func (s *apiServer) addProjectTimeEntry(rw http.ResponseWriter, r *http.Request)
 		internalError(rw, r, err, fmt.Sprintf("Could not get project by name %s", projectName))
 		return
 	}
+	if project == nil {
+		notFoundError(rw, r, fmt.Sprintf("Project not found: %s", projectName))
+		return
+	}
 
 	newEntry, err := project.AddEntry(timeEntry)
 	if err != nil {
@@ -357,4 +367,97 @@ func (s *apiServer) addProjectTimeEntry(rw http.ResponseWriter, r *http.Request)
 	}
 
 	jsonResponse(rw, r, 200, mapTimeEntryToApi(newEntry))
+}
+
+func (s *apiServer) updateProjectTimeEntry(rw http.ResponseWriter, r *http.Request) {
+	user := s.getUser(rw, r)
+	if user == nil {
+		return
+	}
+
+	var apiTimeEntry api.TimeEntry
+	err := jsonRequest(rw, r, &apiTimeEntry)
+	if err != nil {
+		return
+	}
+	timeEntry := mapApiToTimeEntry(&apiTimeEntry)
+
+	projectName := chi.URLParam(r, "projectName")
+	if projectName == "" {
+		validationError(rw, r, "project name in URL cannot be blank")
+		return
+	}
+
+	project, err := user.GetProject(projectName)
+	if err != nil {
+		internalError(rw, r, err, fmt.Sprintf("Could not get project by name %s", projectName))
+		return
+	}
+	if project == nil {
+		notFoundError(rw, r, fmt.Sprintf("Project not found: %s", projectName))
+		return
+	}
+
+	entryID := chi.URLParam(r, "entryID")
+	if entryID == "" {
+		validationError(rw, r, "entry ID in URL cannot be blank")
+		return
+	}
+
+	if timeEntry.ID == "" {
+		timeEntry.ID = entryID
+	}
+
+	if entryID != timeEntry.ID {
+		validationError(rw, r, "entry ID in URL does not match entry ID in body")
+		return
+	}
+
+	updatedEntry, err := project.UpdateEntry(timeEntry)
+	if err != nil {
+		internalError(rw, r, err, fmt.Sprintf("Error while updating time entry"))
+		return
+	}
+
+	jsonResponse(rw, r, 200, mapTimeEntryToApi(updatedEntry))
+}
+
+func (s *apiServer) getProjectTimeEntry(rw http.ResponseWriter, r *http.Request) {
+	user := s.getUser(rw, r)
+	if user == nil {
+		return
+	}
+
+	projectName := chi.URLParam(r, "projectName")
+	if projectName == "" {
+		validationError(rw, r, "project name in URL cannot be blank")
+		return
+	}
+
+	project, err := user.GetProject(projectName)
+	if err != nil {
+		internalError(rw, r, err, fmt.Sprintf("Could not get project by name %s", projectName))
+		return
+	}
+	if project == nil {
+		notFoundError(rw, r, fmt.Sprintf("Project not found: %s", projectName))
+		return
+	}
+
+	entryID := chi.URLParam(r, "entryID")
+	if entryID == "" {
+		validationError(rw, r, "entry ID in URL cannot be blank")
+		return
+	}
+
+	timeEntry, err := project.GetEntry(entryID)
+	if err != nil {
+		internalError(rw, r, err, fmt.Sprintf("Error while getting time entry"))
+		return
+	}
+	if timeEntry == nil {
+		notFoundError(rw, r, fmt.Sprintf("Time entry not found: %s/%s", projectName, entryID))
+	}
+
+	jsonResponse(rw, r, 200, mapTimeEntryToApi(timeEntry))
 }
