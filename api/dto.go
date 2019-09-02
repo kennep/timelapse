@@ -25,6 +25,7 @@ type (
 	}
 
 	TimeEntry struct {
+		ID          string        `json:"id"`
 		ProjectName string        `json:"project_name"`
 		Type        string        `json:"type"`
 		Start       time.Time     `json:"start"`
@@ -71,7 +72,8 @@ func formatEntryDuration(e *TimeEntry) string {
 }
 
 func (e *TimeEntry) String() string {
-	return fmt.Sprintf("%s - %s %s (%s): %s %s %s",
+	return fmt.Sprintf("%s %s - %s %s (%s): %s %s %s",
+		e.ID,
 		formatEntryTime(e.Type, e.Start),
 		formatEntryTime(e.Type, e.End),
 		formatEntryBreaks(e.Type, e.Breaks),
