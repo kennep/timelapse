@@ -31,8 +31,8 @@ type (
 		ProjectID primitive.ObjectID `bson:"projectid"`
 		UserID    primitive.ObjectID `bson:"userid"`
 		Type      string             `bson:"type"`
-		Start     time.Time          `bson:"start"`
-		End       time.Time          `bson:"end"`
+		Start     *time.Time         `bson:"start"`
+		End       *time.Time         `bson:"end"`
 		Breaks    time.Duration      `bson:"breaks"`
 		Comment   string             `bson:"comment"`
 	}

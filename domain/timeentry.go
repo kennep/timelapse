@@ -8,8 +8,8 @@ type (
 		ID      string
 		Project *Project
 		Type    string
-		Start   time.Time
-		End     time.Time
+		Start   *time.Time
+		End     *time.Time
 		Breaks  time.Duration
 		Comment string
 	}

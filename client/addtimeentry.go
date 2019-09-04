@@ -44,23 +44,25 @@ func addTimeEntry(projectName string) error {
 		return err
 	}
 
+	now := time.Now()
+
 	entry := api.TimeEntry{
-		Start:   time.Now(),
-		End:     time.Now(),
+		Start:   &now,
+		End:     &now,
 		Breaks:  time.Duration(0),
 		Type:    entryType,
 		Comment: entryComment,
 	}
 
 	if startTime != "" {
-		entry.Start, err = ParseTimeRef(startTime, entry.Start)
+		*entry.Start, err = ParseTimeRef(startTime, *entry.Start)
 		if err != nil {
 			return err
 		}
 	}
 
 	if endTime != "" {
-		entry.End, err = ParseTimeRef(endTime, entry.End)
+		*entry.End, err = ParseTimeRef(endTime, *entry.End)
 		if err != nil {
 			return err
 		}
@@ -74,8 +76,8 @@ func addTimeEntry(projectName string) error {
 	}
 
 	if entryType != "work" {
-		entry.Start = normalizeTime(entry.Start)
-		entry.End = normalizeTime(entry.End)
+		*entry.Start = normalizeTime(*entry.Start)
+		*entry.End = normalizeTime(*entry.End)
 	}
 
 	result, err := apiClient.AddTimeEntry(projectName, &entry)

@@ -38,14 +38,16 @@ func updateTimeEntry(cmd *cobra.Command, projectName string, entryID string) err
 	}
 
 	if startTime != "" {
-		entry.Start, err = ParseTimeRef(startTime, entry.Start)
+		start, err := ParseTimeRef(startTime, time.Now())
+		entry.Start = &start
 		if err != nil {
 			return err
 		}
 	}
 
 	if endTime != "" {
-		entry.End, err = ParseTimeRef(endTime, entry.End)
+		end, err := ParseTimeRef(endTime, time.Now())
+		entry.End = &end
 		if err != nil {
 			return err
 		}
@@ -67,8 +69,12 @@ func updateTimeEntry(cmd *cobra.Command, projectName string, entryID string) err
 	}
 
 	if entry.Type != "work" {
-		entry.Start = normalizeTime(entry.Start)
-		entry.End = normalizeTime(entry.End)
+		if entry.Start != nil {
+			*entry.Start = normalizeTime(*entry.Start)
+		}
+		if entry.End != nil {
+			*entry.End = normalizeTime(*entry.End)
+		}
 	}
 
 	result, err := apiClient.UpdateTimeEntry(projectName, entry)

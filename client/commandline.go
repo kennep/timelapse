@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/kennep/timelapse/api"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -12,6 +13,13 @@ var rootCmd = &cobra.Command{
 	Use:   "timelapse",
 	Short: "Timelapse is a project time tracker",
 	Long:  `Timelapse is a project time tracker for the command line`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if logLevelTrace {
+			logrus.Warn("Activating trace logging - this can cause confidential information to be logged!")
+			logrus.SetLevel(logrus.TraceLevel)
+		}
+	},
+
 	Run: func(cmd *cobra.Command, args []string) {
 		// Do Stuff Here
 	},
@@ -19,6 +27,13 @@ var rootCmd = &cobra.Command{
 
 var commandLineProject api.Project
 var commandLineEntry api.TimeEntry
+
+var logLevelTrace bool
+
+func init() {
+	rootCmd.PersistentFlags().BoolVar(&logLevelTrace, "trace", false, "Activate trace logging")
+
+}
 
 // Execute is the main entry point to this command-line application
 func Execute() {

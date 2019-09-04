@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/kennep/timelapse/api"
+	"github.com/sirupsen/logrus"
 )
 
 const applicationJson = "application/json"
@@ -58,7 +58,7 @@ func NewApiClient() (*ApiClient, error) {
 	return &apiClient, nil
 }
 
-func (c *ApiClient) requestFor(method string, path string, body io.Reader) (*http.Request, error) {
+func (c *ApiClient) requestFor(method string, path string, body []byte) (*http.Request, error) {
 	url := c.configuration.BaseURL
 	if strings.HasSuffix(url, "/") {
 		url += path[1:]
@@ -66,7 +66,7 @@ func (c *ApiClient) requestFor(method string, path string, body io.Reader) (*htt
 		url += path
 	}
 
-	request, err := http.NewRequest(method, url, body)
+	request, err := http.NewRequest(method, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -76,6 +76,22 @@ func (c *ApiClient) requestFor(method string, path string, body io.Reader) (*htt
 	}
 
 	request.Header.Set("Authorization", "Bearer "+token)
+
+	if logrus.GetLevel() >= logrus.TraceLevel {
+		logrus.WithFields(logrus.Fields{
+			"baseurl": c.configuration.BaseURL,
+			"path":    path,
+			"method":  method,
+		}).Trace("HTTP Request")
+		h := make(logrus.Fields)
+		for k, v := range request.Header {
+			h[k] = v
+		}
+		logrus.WithFields(h).Trace("HTTP Request headers")
+		logrus.WithFields(logrus.Fields{
+			"body": string(body),
+		}).Trace("HTTP Request body")
+	}
 
 	return request, nil
 }
@@ -124,7 +140,7 @@ func (c *ApiClient) jsonRequest(method string, path string, request interface{},
 }
 
 func (c *ApiClient) doRequest(method string, path string, body []byte) ([]byte, error) {
-	req, err := c.requestFor(method, path, bytes.NewReader(body))
+	req, err := c.requestFor(method, path, body)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +163,7 @@ func (c *ApiClient) doRequest(method string, path string, body []byte) ([]byte, 
 			return nil, err
 		}
 
-		req, err := c.requestFor(method, path, bytes.NewReader(body))
+		req, err := c.requestFor(method, path, body)
 		if err != nil {
 			return nil, err
 		}
@@ -164,6 +180,17 @@ func (c *ApiClient) doRequest(method string, path string, body []byte) ([]byte, 
 	buf.ReadFrom(resp.Body)
 	responseBody := buf.Bytes()
 
+	if logrus.GetLevel() >= logrus.TraceLevel {
+		h := make(logrus.Fields)
+		for k, v := range resp.Header {
+			h[k] = v
+		}
+		logrus.WithFields(h).Trace("HTTP Response headers")
+		logrus.WithFields(logrus.Fields{
+			"body": string(responseBody),
+		}).Trace("HTTP Response body")
+	}
+
 	if resp.StatusCode >= 300 {
 		var remoteError RemoteError
 		err = json.Unmarshal(responseBody, &remoteError)
@@ -174,7 +201,7 @@ func (c *ApiClient) doRequest(method string, path string, body []byte) ([]byte, 
 		return nil, &HTTPResponseError{resp, responseBody}
 	}
 
-	return buf.Bytes(), err
+	return responseBody, err
 }
 
 func (c *ApiClient) CreateProject(project *api.Project) (*api.Project, error) {

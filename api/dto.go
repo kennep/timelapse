@@ -28,8 +28,8 @@ type (
 		ID          string        `json:"id"`
 		ProjectName string        `json:"project_name"`
 		Type        string        `json:"type"`
-		Start       time.Time     `json:"start"`
-		End         time.Time     `json:"end"`
+		Start       *time.Time    `json:"start"`
+		End         *time.Time    `json:"end"`
 		Breaks      time.Duration `json:"breaks"`
 		Comment     string        `json:"comment"`
 	}
@@ -39,7 +39,10 @@ func (p *Project) String() string {
 	return fmt.Sprintf("Project: %s (%s) (billable: %t)", p.Name, p.Description, p.Billable)
 }
 
-func formatEntryTime(entryType string, entryTime time.Time) string {
+func formatEntryTime(entryType string, entryTime *time.Time) string {
+	if entryTime == nil {
+		return "                "
+	}
 	if entryType == "work" {
 		return entryTime.In(time.Local).Format("2006-01-02 15:04")
 	} else {
@@ -56,8 +59,16 @@ func formatEntryBreaks(entryType string, breaks time.Duration) string {
 }
 
 func formatEntryDuration(e *TimeEntry) string {
-	duration := e.End.Sub(e.Start)
-	duration -= e.Breaks
+	start := time.Now()
+	if e.Start != nil {
+		start = *e.Start
+	}
+	end := time.Now()
+	if e.End != nil {
+		end = *e.End
+	}
+	duration := end.Sub(start)
+
 	if e.Type == "work" {
 		seconds := int64(duration.Seconds())
 		if seconds > 86400 {
