@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -217,6 +218,11 @@ func (s *apiServer) getProject(rw http.ResponseWriter, r *http.Request) {
 		validationError(rw, r, "project name in URL cannot be blank")
 		return
 	}
+	projectName, err := url.QueryUnescape(projectName)
+	if err != nil {
+		validationError(rw, r, err.Error())
+		return
+	}
 
 	projectResult, err := user.GetProject(projectName)
 	if err != nil {
@@ -242,8 +248,13 @@ func (s *apiServer) updateProject(rw http.ResponseWriter, r *http.Request) {
 		validationError(rw, r, "project name in URL cannot be blank")
 		return
 	}
+	projectName, err := url.QueryUnescape(projectName)
+	if err != nil {
+		validationError(rw, r, err.Error())
+		return
+	}
 	var apiProject api.Project
-	err := jsonRequest(rw, r, &apiProject)
+	err = jsonRequest(rw, r, &apiProject)
 	if err != nil {
 		return
 	}
@@ -298,6 +309,11 @@ func (s *apiServer) getProjectTimeEntries(rw http.ResponseWriter, r *http.Reques
 		validationError(rw, r, "project name in URL cannot be blank")
 		return
 	}
+	projectName, err := url.QueryUnescape(projectName)
+	if err != nil {
+		validationError(rw, r, err.Error())
+		return
+	}
 
 	project, err := user.GetProject(projectName)
 	if err != nil {
@@ -349,6 +365,11 @@ func (s *apiServer) addProjectTimeEntry(rw http.ResponseWriter, r *http.Request)
 		validationError(rw, r, "project name in URL cannot be blank")
 		return
 	}
+	projectName, err = url.QueryUnescape(projectName)
+	if err != nil {
+		validationError(rw, r, err.Error())
+		return
+	}
 
 	project, err := user.GetProject(projectName)
 	if err != nil {
@@ -387,6 +408,11 @@ func (s *apiServer) updateProjectTimeEntry(rw http.ResponseWriter, r *http.Reque
 		validationError(rw, r, "project name in URL cannot be blank")
 		return
 	}
+	projectName, err = url.QueryUnescape(projectName)
+	if err != nil {
+		validationError(rw, r, err.Error())
+		return
+	}
 
 	project, err := user.GetProject(projectName)
 	if err != nil {
@@ -401,6 +427,11 @@ func (s *apiServer) updateProjectTimeEntry(rw http.ResponseWriter, r *http.Reque
 	entryID := chi.URLParam(r, "entryID")
 	if entryID == "" {
 		validationError(rw, r, "entry ID in URL cannot be blank")
+		return
+	}
+	entryID, err = url.QueryUnescape(entryID)
+	if err != nil {
+		validationError(rw, r, err.Error())
 		return
 	}
 
@@ -433,6 +464,11 @@ func (s *apiServer) getProjectTimeEntry(rw http.ResponseWriter, r *http.Request)
 		validationError(rw, r, "project name in URL cannot be blank")
 		return
 	}
+	projectName, err := url.QueryUnescape(projectName)
+	if err != nil {
+		validationError(rw, r, err.Error())
+		return
+	}
 
 	project, err := user.GetProject(projectName)
 	if err != nil {
@@ -447,6 +483,11 @@ func (s *apiServer) getProjectTimeEntry(rw http.ResponseWriter, r *http.Request)
 	entryID := chi.URLParam(r, "entryID")
 	if entryID == "" {
 		validationError(rw, r, "entry ID in URL cannot be blank")
+		return
+	}
+	entryID, err = url.QueryUnescape(entryID)
+	if err != nil {
+		validationError(rw, r, err.Error())
 		return
 	}
 

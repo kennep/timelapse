@@ -215,7 +215,7 @@ func (c *ApiClient) CreateProject(project *api.Project) (*api.Project, error) {
 
 func (c *ApiClient) GetProject(projectName string) (*api.Project, error) {
 	var project api.Project
-	err := c.jsonRequest("GET", fmt.Sprintf("/projects/%s", url.PathEscape(projectName)), nil, &project)
+	err := c.jsonRequest("GET", fmt.Sprintf("/projects/%s", url.QueryEscape(projectName)), nil, &project)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func (c *ApiClient) GetProject(projectName string) (*api.Project, error) {
 
 func (c *ApiClient) UpdateProject(projectName string, project *api.Project) (*api.Project, error) {
 	var updatedProject api.Project
-	err := c.jsonRequest("PUT", fmt.Sprintf("/projects/%s", url.PathEscape(projectName)), project, &updatedProject)
+	err := c.jsonRequest("PUT", fmt.Sprintf("/projects/%s", url.QueryEscape(projectName)), project, &updatedProject)
 	if err != nil {
 		return nil, err
 	}
@@ -247,7 +247,7 @@ func (c *ApiClient) GetTimeEntries(projectName string) ([]*api.TimeEntry, error)
 	if projectName == "" {
 		path = "/entries"
 	} else {
-		path = fmt.Sprintf("/projects/%s/entries", url.PathEscape(projectName))
+		path = fmt.Sprintf("/projects/%s/entries", url.QueryEscape(projectName))
 	}
 	err := c.jsonRequest("GET", path, nil, &timeentries)
 	if err != nil {
@@ -257,7 +257,7 @@ func (c *ApiClient) GetTimeEntries(projectName string) ([]*api.TimeEntry, error)
 }
 
 func (c *ApiClient) AddTimeEntry(projectName string, entry *api.TimeEntry) (*api.TimeEntry, error) {
-	path := fmt.Sprintf("/projects/%s/entries", url.PathEscape(projectName))
+	path := fmt.Sprintf("/projects/%s/entries", url.QueryEscape(projectName))
 
 	var entryResult api.TimeEntry
 	err := c.jsonRequest("POST", path, entry, &entryResult)
@@ -269,7 +269,7 @@ func (c *ApiClient) AddTimeEntry(projectName string, entry *api.TimeEntry) (*api
 }
 
 func (c *ApiClient) GetTimeEntry(projectName string, entryID string) (*api.TimeEntry, error) {
-	path := fmt.Sprintf("/projects/%s/entries/%s", url.PathEscape(projectName), url.PathEscape(entryID))
+	path := fmt.Sprintf("/projects/%s/entries/%s", url.QueryEscape(projectName), url.QueryEscape(entryID))
 
 	var entryResult api.TimeEntry
 	err := c.jsonRequest("GET", path, nil, &entryResult)
@@ -281,7 +281,7 @@ func (c *ApiClient) GetTimeEntry(projectName string, entryID string) (*api.TimeE
 }
 
 func (c *ApiClient) UpdateTimeEntry(projectName string, entry *api.TimeEntry) (*api.TimeEntry, error) {
-	path := fmt.Sprintf("/projects/%s/entries/%s", url.PathEscape(projectName), url.PathEscape(entry.ID))
+	path := fmt.Sprintf("/projects/%s/entries/%s", url.QueryEscape(projectName), url.QueryEscape(entry.ID))
 
 	var entryResult api.TimeEntry
 	err := c.jsonRequest("PUT", path, entry, &entryResult)
