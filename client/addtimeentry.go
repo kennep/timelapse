@@ -44,11 +44,12 @@ func addTimeEntry(projectName string) error {
 		return err
 	}
 
-	now := time.Now()
+	start := time.Now()
+	end := time.Now()
 
 	entry := api.TimeEntry{
-		Start:   &now,
-		End:     &now,
+		Start:   &start,
+		End:     &end,
 		Breaks:  time.Duration(0),
 		Type:    entryType,
 		Comment: entryComment,
