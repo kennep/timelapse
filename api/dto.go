@@ -68,6 +68,7 @@ func formatEntryDuration(e *TimeEntry) string {
 		end = *e.End
 	}
 	duration := end.Sub(start)
+	duration -= e.Breaks
 
 	if e.Type == "work" {
 		seconds := int64(duration.Seconds())
