@@ -59,7 +59,8 @@ func stopTimeEntry(projectName string, endTime string) error {
 	foundEntry.End = &now
 
 	if endTime != "" {
-		*foundEntry.End, err = ParseTimeRef(startTime, now)
+		tm, err := ParseTimeRef(endTime, now)
+		foundEntry.End = &tm
 		if err != nil {
 			return err
 		}
