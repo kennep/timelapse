@@ -8,8 +8,14 @@ build:
 	docker cp timelapse:/bin/timelapse ./build/
 	docker rm timelapse
 
+build-dev:
+	docker build . --build-arg "GO_BUILD_ARGS=-tags dev" -t timelapse-dev
+
 run-server: build
 	./run-server.sh
+
+run-server-dev: build-dev
+	./run-server.sh --dev
 
 clean:
 	rm -f ./cmd/timelapse-server/timelapse-server

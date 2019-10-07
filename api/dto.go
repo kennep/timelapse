@@ -94,3 +94,13 @@ func (e *TimeEntry) String() string {
 		e.Type,
 		e.Comment)
 }
+
+func (e *TimeEntry) StartsBefore(other *TimeEntry) bool {
+	if e.Start == nil {
+		return false
+	}
+	if other.Start == nil {
+		return true
+	}
+	return e.Start.Before(*(other.Start))
+}

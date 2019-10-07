@@ -9,8 +9,10 @@ RUN go mod download
 
 COPY . /app
 
+ARG GO_BUILD_ARGS
 ENV GO111MODULE=on CGO_ENABLED=0 GOOS=linux GOARCH=amd64
-RUN for c in `find cmd -mindepth 1 -maxdepth 1 -type d`; do (cd $c && go build); done
+RUN go generate ./...
+RUN for c in `find cmd -mindepth 1 -maxdepth 1 -type d`; do (cd $c && go build $GO_BUILD_ARGS); done
 
 FROM scratch
 
@@ -20,4 +22,5 @@ COPY --from=builder /app/cmd/timelapse/timelapse /bin/timelapse
 
 EXPOSE 8080
 
+WORKDIR /
 ENTRYPOINT [ "/bin/timelapse-server" ]

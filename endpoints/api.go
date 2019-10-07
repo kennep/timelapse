@@ -1,5 +1,7 @@
 package endpoints
 
+//go:generate go run -tags=dev static_generate.go
+
 import (
 	"encoding/json"
 	"errors"
@@ -25,18 +27,19 @@ type errorResponse struct {
 	Message string `json:"message"`
 }
 
-func configureHandlerChain(users *domain.Users, r chi.Router) {
+func configureHandlerChain(r chi.Router) {
 	r.Use(ApplicationContext())
 	r.Use(chimiddleware.RealIP)
 	r.Use(Logging())
-	r.Use(Authentication(users))
+	//r.Use(Authentication(users))
 	r.Use(chimiddleware.Recoverer)
 
 	r.Use(chimiddleware.Timeout(60 * time.Second))
 }
 
 type apiServer struct {
-	users *domain.Users
+	users       *domain.Users
+	staticFiles http.Handler
 }
 
 func Serve(users *domain.Users) error {
@@ -45,23 +48,29 @@ func Serve(users *domain.Users) error {
 		listenAddr = ":8080"
 	}
 
-	server := apiServer{users}
+	server := apiServer{users, nil}
 
 	r := chi.NewRouter()
-	configureHandlerChain(users, r)
+	configureHandlerChain(r)
 
-	r.Get("/self", server.getCurrentUser)
+	ar := r.With(Authentication(users))
 
-	r.Post("/projects", server.addProject)
-	r.Get("/projects", server.listProjects)
-	r.Get("/projects/{projectName}", server.getProject)
-	r.Put("/projects/{projectName}", server.updateProject)
+	ar.Get("/self", server.getCurrentUser)
 
-	r.Get("/entries", server.getUserTimeEntries)
-	r.Get("/projects/{projectName}/entries", server.getProjectTimeEntries)
-	r.Post("/projects/{projectName}/entries", server.addProjectTimeEntry)
-	r.Get("/projects/{projectName}/entries/{entryID}", server.getProjectTimeEntry)
-	r.Put("/projects/{projectName}/entries/{entryID}", server.updateProjectTimeEntry)
+	ar.Post("/projects", server.addProject)
+	ar.Get("/projects", server.listProjects)
+	ar.Get("/projects/{projectName}", server.getProject)
+	ar.Put("/projects/{projectName}", server.updateProject)
+
+	ar.Get("/entries", server.getUserTimeEntries)
+	ar.Get("/projects/{projectName}/entries", server.getProjectTimeEntries)
+	ar.Post("/projects/{projectName}/entries", server.addProjectTimeEntry)
+	ar.Get("/projects/{projectName}/entries/{entryID}", server.getProjectTimeEntry)
+	ar.Put("/projects/{projectName}/entries/{entryID}", server.updateProjectTimeEntry)
+
+	r.Get("/*", server.serveStatic)
+
+	server.staticFiles = http.FileServer(Assets)
 
 	log.WithFields(log.Fields{"address": listenAddr}).Info("Timelapse server listening")
 	if err := http.ListenAndServe(listenAddr, r); err != nil {
@@ -501,4 +510,8 @@ func (s *apiServer) getProjectTimeEntry(rw http.ResponseWriter, r *http.Request)
 	}
 
 	jsonResponse(rw, r, 200, mapTimeEntryToApi(timeEntry))
+}
+
+func (s *apiServer) serveStatic(rw http.ResponseWriter, r *http.Request) {
+	s.staticFiles.ServeHTTP(rw, r)
 }

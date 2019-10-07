@@ -79,11 +79,20 @@ func getIssuerFromJWT(p string) (string, error) {
 	var claims jwtClaims
 	json.Unmarshal(payload, &claims)
 
-	return claims.Issuer, nil
+	issuer := claims.Issuer
+	if !strings.Contains(issuer, ":") {
+		issuer = "https://" + issuer
+	}
+
+	return issuer, nil
 }
 
 // ServeHTTP calls the next handler after authentication processing
 func (h *AuthenticationHandler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/" {
+		h.handler.ServeHTTP(rw, r)
+		return
+	}
 	authenticated, err := h.authenticate(rw, r)
 	if err != nil {
 		log.Errorf("Authentication error: %s", err)
@@ -137,7 +146,7 @@ func (h *AuthenticationHandler) authenticate(rw http.ResponseWriter, r *http.Req
 				}
 
 				appcontext.User.SubjectID = idtoken.Subject
-				appcontext.User.Issuer = idtoken.Issuer
+				appcontext.User.Issuer = issuer
 				appcontext.User.Email = claims.Email
 
 				_, err = h.users.GetOrCreateUserFromContext(appcontext)
@@ -145,8 +154,17 @@ func (h *AuthenticationHandler) authenticate(rw http.ResponseWriter, r *http.Req
 					return false, err
 				}
 				return true, nil
+			} else {
+				fields := RequestFields(r)
+				log.WithFields(fields).Warn("Unknown issuer: " + issuer)
 			}
+		} else {
+			fields := RequestFields(r)
+			log.WithFields(fields).Warn("Authorization header does not contain bearer token")
 		}
+	} else {
+		fields := RequestFields(r)
+		log.WithFields(fields).Warn("No authorization header")
 	}
 
 	return false, nil

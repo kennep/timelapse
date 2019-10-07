@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strings"
 
 	"github.com/kennep/timelapse/api"
@@ -253,6 +254,8 @@ func (c *ApiClient) GetTimeEntries(projectName string) ([]*api.TimeEntry, error)
 	if err != nil {
 		return nil, err
 	}
+	sort.Slice(timeentries, func(i, j int) bool { return timeentries[i].StartsBefore(timeentries[j]) })
+
 	return timeentries, nil
 }
 
