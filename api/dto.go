@@ -59,16 +59,7 @@ func formatEntryBreaks(entryType string, breaks time.Duration) string {
 }
 
 func formatEntryDuration(e *TimeEntry) string {
-	start := time.Now()
-	if e.Start != nil {
-		start = *e.Start
-	}
-	end := time.Now()
-	if e.End != nil {
-		end = *e.End
-	}
-	duration := end.Sub(start)
-	duration -= e.Breaks
+	duration := e.Duration()
 
 	if e.Type == "work" {
 		seconds := int64(duration.Seconds())
@@ -81,6 +72,20 @@ func formatEntryDuration(e *TimeEntry) string {
 		days := int(math.Round(duration.Round(24*time.Hour).Hours()/24 + 1))
 		return fmt.Sprintf("%2dd     ", days)
 	}
+}
+
+func (e *TimeEntry) Duration() time.Duration {
+	start := time.Now()
+	if e.Start != nil {
+		start = *e.Start
+	}
+	end := time.Now()
+	if e.End != nil {
+		end = *e.End
+	}
+	duration := end.Sub(start)
+	duration -= e.Breaks
+	return duration
 }
 
 func (e *TimeEntry) String() string {

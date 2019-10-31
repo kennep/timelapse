@@ -23,3 +23,5 @@ require (
 	google.golang.org/appengine v1.4.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.2.2 // indirect
 )
+
+go 1.13
